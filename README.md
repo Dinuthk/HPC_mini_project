@@ -19,3 +19,7 @@ main.cpp => nvcc -Xcompiler -fopenmp -Xcompiler -pthread -I/usr/lib/x86_64-linux
 │   ├── listener.h         # Declarations for listener.c
 │   └── compute.h          # Declarations for compute.c
 └── Makefile               # Critical for compiling the Beowulf cluster code
+
+Final run comand 
+
+hpc -> mpirun -np 3 ./bin/load_balancer
