@@ -1,0 +1,37 @@
+{
+  "version": 4,
+  "configurations": [
+    {
+      "name": "WSL-Ubuntu",
+      "includePath": [
+        "${workspaceFolder}",
+        "${workspaceFolder}/**",
+        "\\\\wsl$\\Ubuntu\\usr\\include",
+        "\\\\wsl$\\Ubuntu\\usr\\include\\x86_64-linux-gnu",
+        "\\\\wsl$\\Ubuntu\\usr\\local\\include",
+        "\\\\wsl$\\Ubuntu\\usr\\local\\cuda\\include",
+        "\\\\wsl$\\Ubuntu\\usr\\lib\\gcc\\x86_64-linux-gnu\\13\\include",
+        "\\\\wsl$\\Ubuntu\\usr\\lib\\x86_64-linux-gnu\\openmpi\\include",
+        "\\\\wsl$\\Ubuntu\\usr\\lib\\x86_64-linux-gnu\\openmpi\\include\\openmpi"
+      ],
+      "defines": [
+        "_GNU_SOURCE",
+        "__CUDACC__"
+      ],
+      "compilerPath": "",
+      "intelliSenseMode": "linux-gcc-x64",
+      "cStandard": "c17",
+      "cppStandard": "c++17",
+      "browse": {
+        "path": [
+          "${workspaceFolder}",
+          "\\\\wsl$\\Ubuntu\\usr\\include",
+          "\\\\wsl$\\Ubuntu\\usr\\include\\x86_64-linux-gnu",
+          "\\\\wsl$\\Ubuntu\\usr\\lib\\gcc\\x86_64-linux-gnu\\13\\include",
+          "\\\\wsl$\\Ubuntu\\usr\\lib\\x86_64-linux-gnu\\openmpi\\include"
+        ],
+        "limitSymbolsToIncludedHeaders": true
+      }
+    }
+  ]
+}
