@@ -1,4 +1,5 @@
 #include "common.h"
+#include "config.h"
 #include "master.h"
 
 void run_master(int world_rank, int world_size) {
@@ -6,16 +7,16 @@ void run_master(int world_rank, int world_size) {
     printf("[Master] BOOTING DISTRIBUTED LOAD BALANCER SIMULATION\n");
     printf("====================================================\n");
     
-    Trade* batch = (Trade*)malloc(80000 * sizeof(Trade));
-    for (int i = 0; i < 80000; i++) { batch[i].stock_id = i; batch[i].price = 150.0; batch[i].volume = 100.0; }
+    Trade* batch = (Trade*)malloc(INITIAL_TASKS_NODE_1 * sizeof(Trade));
+    for (int i = 0; i < INITIAL_TASKS_NODE_1; i++) { batch[i].stock_id = i; batch[i].price = 150.0; batch[i].volume = 100.0; }
 
-    printf("[Master] Creating Imbalance: Assigning 80k tasks to Node 1, and 10k to Node 2.\n");
-    MPI_Send(batch, 80000 * sizeof(Trade), MPI_BYTE, 1, TAG_WORK, MPI_COMM_WORLD);
-    MPI_Send(batch, 10000 * sizeof(Trade), MPI_BYTE, 2, TAG_WORK, MPI_COMM_WORLD);
+    printf("[Master] Creating Imbalance: Assigning %d tasks to Node 1, and %d to Node 2.\n", INITIAL_TASKS_NODE_1, INITIAL_TASKS_NODE_2);
+    MPI_Send(batch, INITIAL_TASKS_NODE_1 * sizeof(Trade), MPI_BYTE, 1, TAG_WORK, MPI_COMM_WORLD);
+    MPI_Send(batch, INITIAL_TASKS_NODE_2 * sizeof(Trade), MPI_BYTE, 2, TAG_WORK, MPI_COMM_WORLD);
 
     double start_time = MPI_Wtime();
     
-    while (MPI_Wtime() - start_time < 6.0) {
+    while (MPI_Wtime() - start_time < SIMULATION_DURATION_SECONDS) {
         int flag; MPI_Status status;
         MPI_Iprobe(MPI_ANY_SOURCE, TAG_IDLE, MPI_COMM_WORLD, &flag, &status);
         
@@ -42,7 +43,7 @@ void run_master(int world_rank, int world_size) {
             MPI_Send(stolen, bytes, MPI_BYTE, starving_node, TAG_WORK, MPI_COMM_WORLD);
             if(stolen) free(stolen);
         }
-        usleep(20000); 
+        usleep(PROBE_INTERVAL_USEC); 
     }
 
     printf("\n[Master] SIMULATION COMPLETE. Sending shutdown signals.\n");

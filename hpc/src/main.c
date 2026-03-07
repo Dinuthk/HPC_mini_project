@@ -1,4 +1,5 @@
 #include "common.h"
+#include "config.h"
 #include "master.h"
 #include "worker.h"
 
@@ -45,6 +46,9 @@ int main(int argc, char** argv) {
         MPI_Finalize();
         return 1;
     }
+
+    // Display system configuration
+    display_system_config(world_rank, world_size);
 
     if (world_rank == 0) {
         run_master(world_rank, world_size);
