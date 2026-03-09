@@ -4,6 +4,7 @@
 #include "compute.h"
 
 void run_worker(int world_rank, int world_size) {
+    (void)world_size;
     init_queue(&task_queue);
     pthread_mutex_init(&queue_mutex, NULL);
     

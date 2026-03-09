@@ -2,6 +2,8 @@
 #include "master.h"
 
 void run_master(int world_rank, int world_size) {
+    (void)world_rank;
+    (void)world_size;
     printf("====================================================\n");
     printf("[Master] BOOTING DISTRIBUTED LOAD BALANCER SIMULATION\n");
     printf("====================================================\n");

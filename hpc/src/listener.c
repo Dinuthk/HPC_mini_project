@@ -2,6 +2,7 @@
 #include "listener.h"
 
 void* network_listener(void* arg) {
+    (void)arg;
     int world_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
 

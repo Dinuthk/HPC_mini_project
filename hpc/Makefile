@@ -1,6 +1,7 @@
 # Define the compiler and the flags
 CC = mpicc
-CFLAGS = -Wall -Wextra -O3 -pthread -fopenmp -I./include
+CFLAGS = -Wall -Wextra -O3 -pthread -I./include -I/opt/homebrew/opt/libomp/include -Xclang -fopenmp
+LDFLAGS = -L/opt/homebrew/opt/libomp/lib -lomp
 
 # Define directories
 SRC_DIR = src
@@ -25,7 +26,7 @@ directories:
 
 # Link all the object files to create the final executable
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 # Compile each .c file into a .o file
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
