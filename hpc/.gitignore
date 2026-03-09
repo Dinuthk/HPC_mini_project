@@ -1,0 +1,31 @@
+# Python virtual environment
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Analysis outputs
+*.png
+*.csv
+
+# Build artifacts
+bin/
+obj/
+*.o
+*.out
+
+# MPI/HPC outputs
+*.log
+*.err
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
