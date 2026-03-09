@@ -46,6 +46,18 @@ open time_breakdown.png
 deactivate
 ```
 
+**Option C: Interactive UI Dashboard**
+```bash
+# One-time dependency install inside your venv
+source venv/bin/activate
+pip install -r requirements-ui.txt
+
+# Launch dashboard
+streamlit run ui_app.py
+```
+
+From the UI you can build, run simulations with custom parameters, and view charts from `simulation_metrics.csv`.
+
 ---
 
 ## 📊 What You'll See
