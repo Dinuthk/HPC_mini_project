@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <math.h>
 
 /**
  * NO LOAD BALANCER - Pure Sequential Version
@@ -36,11 +37,22 @@ typedef struct {
 // But runs on a SINGLE THREAD — no OpenMP, no parallelism
 // ---------------------------------------------------------
 void compute_risk(Trade* trade, double* result) {
-    double risk = 0.0;
-    for (int i = 0; i < 10000; i++) {
-        risk += (trade->price * 0.01) + (trade->volume * 0.0001) - (i * 0.001);
+    double base_price = trade->price;
+    double volume = trade->volume;
+    double weight = trade->complexity_weight;
+    
+    double total_simulated_risk = 0.0;
+    int simulations = 50000; // Same as HPC version
+    
+    for (int i = 0; i < simulations; i++) {
+        double pseudo_rand = (double)(i % 100) / 100.0;
+        double drift = (base_price * 0.02) - (volume * 0.00005);
+        double volatility = sin(base_price * pseudo_rand) * cos(volume * 0.001) * weight;
+        double simulated_price = base_price * exp(drift + volatility + log(1.0 + pseudo_rand));
+        total_simulated_risk += simulated_price;
     }
-    *result = risk;
+    
+    *result = total_simulated_risk / simulations;
 }
 
 // ---------------------------------------------------------

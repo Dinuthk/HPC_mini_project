@@ -12,7 +12,7 @@ directories:
 	@mkdir -p $(BIN_DIR)
 
 $(TARGET): no_balancer.c
-	$(CC) $(CFLAGS) no_balancer.c -o $(TARGET)
+	$(CC) $(CFLAGS) no_balancer.c -o $(TARGET) -lm
 
 clean:
 	rm -rf $(BIN_DIR)

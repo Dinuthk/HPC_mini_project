@@ -25,7 +25,7 @@ directories:
 
 # Link all the object files to create the final executable
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^ -lm
 
 # Compile each .c file into a .o file
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c

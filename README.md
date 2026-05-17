@@ -22,10 +22,10 @@ main.cpp => nvcc -Xcompiler -fopenmp -Xcompiler -pthread -I/usr/lib/x86_64-linux
 
 Final run comand 
 
-# No balancer (sequential)
+# No balancer — will take a LONG time (single thread, 600k tasks)
 cd /mnt/d/Github_work_place/HPC_mini_project/no_balancer
 make clean && make && ./bin/no_balancer
 
-# HPC load balanced
-cd /mnt/d/Github_work_place/HPC_mini_project/hpc
+# HPC — will finish much faster and exit when done
+cd /mnt/d/Github_work_place/HPC_mini_project/hpc  
 make clean && make && mpirun --allow-run-as-root -np 3 ./bin/load_balancer
