@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HPC Simulation Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #0d0d1a 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .bg-grid {
+            position: fixed; inset: 0; z-index: 0;
+            background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+        }
+
+        header {
+            position: relative; z-index: 1;
+            text-align: center;
+            padding: 2rem 1rem 1rem;
+        }
+        header h1 {
+            font-size: 1.8rem; font-weight: 700;
+            background: linear-gradient(135deg, #00d4ff, #7b61ff, #ff6b35);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+        header p { color: #666; font-size: 0.85rem; margin-top: 0.3rem; }
+
+        .panels {
+            position: relative; z-index: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            max-width: 1400px;
+            margin: 1.5rem auto;
+            padding: 0 1.5rem;
+        }
+
+        .panel {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 16px;
+            backdrop-filter: blur(12px);
+            overflow: hidden;
+            transition: border-color 0.3s;
+        }
+        .panel:hover { border-color: rgba(255,255,255,0.12); }
+
+        .panel-header {
+            padding: 1.2rem 1.5rem;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .panel-header .title-group { display: flex; align-items: center; gap: 0.7rem; }
+        .panel-header .icon {
+            width: 36px; height: 36px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem;
+        }
+        .panel.hpc .icon { background: rgba(0,212,255,0.15); }
+        .panel.nb .icon { background: rgba(255,140,0,0.15); }
+        .panel-header h2 { font-size: 1rem; font-weight: 600; }
+        .panel-header .subtitle { font-size: 0.7rem; color: #666; }
+
+        .status-badge {
+            padding: 4px 12px; border-radius: 20px;
+            font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .status-badge .dot {
+            width: 7px; height: 7px; border-radius: 50%;
+        }
+        .status-idle { background: rgba(100,100,100,0.2); color: #888; }
+        .status-idle .dot { background: #666; }
+        .status-building { background: rgba(255,200,0,0.15); color: #ffc800; }
+        .status-building .dot { background: #ffc800; animation: pulse 1s infinite; }
+        .status-running { background: rgba(0,212,255,0.15); color: #00d4ff; }
+        .status-running .dot { background: #00d4ff; animation: pulse 1s infinite; }
+        .status-completed { background: rgba(0,255,100,0.12); color: #00ff64; }
+        .status-completed .dot { background: #00ff64; }
+        .status-error, .status-stopped { background: rgba(255,60,60,0.15); color: #ff3c3c; }
+        .status-error .dot, .status-stopped .dot { background: #ff3c3c; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.7); }
+        }
+
+        .params-grid {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 0.8rem; padding: 1.2rem 1.5rem;
+        }
+        .param-group { display: flex; flex-direction: column; gap: 4px; }
+        .param-group label {
+            font-size: 0.7rem; font-weight: 500; color: #888;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .param-group input {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px; padding: 8px 12px;
+            color: #fff; font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem; outline: none;
+            transition: border-color 0.2s;
+        }
+        .param-group input:focus { border-color: rgba(0,212,255,0.5); }
+        .panel.nb .param-group input:focus { border-color: rgba(255,140,0,0.5); }
+
+        .actions {
+            display: flex; gap: 0.6rem;
+            padding: 0 1.5rem 1rem;
+        }
+        .btn {
+            flex: 1; padding: 10px 16px; border: none; border-radius: 10px;
+            font-family: 'Inter', sans-serif; font-size: 0.8rem; font-weight: 600;
+            cursor: pointer; transition: all 0.2s; display: flex;
+            align-items: center; justify-content: center; gap: 6px;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn-run {
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            color: #fff;
+        }
+        .btn-run:hover { box-shadow: 0 4px 20px rgba(0,212,255,0.3); }
+        .panel.nb .btn-run {
+            background: linear-gradient(135deg, #ff8c00, #cc6600);
+        }
+        .panel.nb .btn-run:hover { box-shadow: 0 4px 20px rgba(255,140,0,0.3); }
+        .btn-stop {
+            background: rgba(255,60,60,0.15); color: #ff5555;
+        }
+        .btn-stop:hover { background: rgba(255,60,60,0.25); }
+        .btn-save {
+            background: rgba(255,255,255,0.08); color: #ccc;
+        }
+        .btn-save:hover { background: rgba(255,255,255,0.14); }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .terminal {
+            margin: 0 1.5rem 1.2rem;
+            background: #0a0a0a;
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 10px;
+            height: 340px;
+            overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+        .terminal-bar {
+            display: flex; align-items: center; gap: 6px;
+            padding: 8px 14px;
+            background: rgba(255,255,255,0.03);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .terminal-bar .dot-r { width: 10px; height: 10px; border-radius: 50%; background: #ff5f56; }
+        .terminal-bar .dot-y { width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e; }
+        .terminal-bar .dot-g { width: 10px; height: 10px; border-radius: 50%; background: #27c93f; }
+        .terminal-bar span {
+            margin-left: 8px; font-size: 0.7rem; color: #555;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .terminal-output {
+            flex: 1; overflow-y: auto; padding: 12px 14px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem; line-height: 1.6;
+            color: #00ff41;
+        }
+        .terminal-output::-webkit-scrollbar { width: 6px; }
+        .terminal-output::-webkit-scrollbar-track { background: transparent; }
+        .terminal-output::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+        .terminal-output .line-build { color: #888; }
+        .terminal-output .line-warn { color: #ffc800; }
+        .terminal-output .line-error { color: #ff3c3c; }
+        .terminal-output .line-master { color: #00d4ff; }
+        .terminal-output .line-worker { color: #7b61ff; }
+        .terminal-output .line-result { color: #00ff64; font-weight: 500; }
+        .terminal-output .line-box { color: #ff8c00; }
+
+        .elapsed-bar {
+            padding: 0.6rem 1.5rem 1rem;
+            font-size: 0.75rem; color: #666;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .elapsed-bar strong { color: #aaa; }
+
+        @media (max-width: 900px) {
+            .panels { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="bg-grid"></div>
+
+<header>
+    <h1>⚡ HPC Simulation Dashboard</h1>
+    <p>Control &amp; Compare — Load Balanced vs Sequential Processing</p>
+</header>
+
+<div class="panels">
+    <!-- HPC Panel -->
+    <div class="panel hpc" id="panel-hpc">
+        <div class="panel-header">
+            <div class="title-group">
+                <div class="icon">🚀</div>
+                <div>
+                    <h2>HPC Load Balanced</h2>
+                    <div class="subtitle">MPI + OpenMP + Pthreads</div>
+                </div>
+            </div>
+            <div class="status-badge status-idle" id="status-hpc">
+                <div class="dot"></div> <span>IDLE</span>
+            </div>
+        </div>
+        <div class="params-grid">
+            <div class="param-group">
+                <label>Simulations / Trade</label>
+                <input type="number" id="hpc-simulations" value="50000">
+            </div>
+            <div class="param-group">
+                <label>MPI Processes</label>
+                <input type="number" id="hpc-np" value="3" min="3">
+            </div>
+            <div class="param-group">
+                <label>Tasks Node 1</label>
+                <input type="number" id="hpc-tasks1" value="500000">
+            </div>
+            <div class="param-group">
+                <label>Tasks Node 2</label>
+                <input type="number" id="hpc-tasks2" value="100000">
+            </div>
+            <div class="param-group">
+                <label>Max Duration (sec)</label>
+                <input type="number" id="hpc-duration" value="360">
+            </div>
+        </div>
+        <div class="actions">
+            <button class="btn btn-save" onclick="saveParams('hpc')">💾 Save</button>
+            <button class="btn btn-run" id="run-hpc" onclick="runSim('hpc')">▶ Run</button>
+            <button class="btn btn-stop" id="stop-hpc" onclick="stopSim('hpc')" disabled>■ Stop</button>
+        </div>
+        <div class="terminal">
+            <div class="terminal-bar">
+                <div class="dot-r"></div><div class="dot-y"></div><div class="dot-g"></div>
+                <span>hpc — load_balancer</span>
+            </div>
+            <div class="terminal-output" id="term-hpc"></div>
+        </div>
+        <div class="elapsed-bar" id="elapsed-hpc">Elapsed: <strong>—</strong></div>
+    </div>
+
+    <!-- No Balancer Panel -->
+    <div class="panel nb" id="panel-nb">
+        <div class="panel-header">
+            <div class="title-group">
+                <div class="icon">📊</div>
+                <div>
+                    <h2>No Balancer</h2>
+                    <div class="subtitle">Sequential — Single Thread</div>
+                </div>
+            </div>
+            <div class="status-badge status-idle" id="status-nb">
+                <div class="dot"></div> <span>IDLE</span>
+            </div>
+        </div>
+        <div class="params-grid">
+            <div class="param-group">
+                <label>Simulations / Trade</label>
+                <input type="number" id="nb-simulations" value="50000">
+            </div>
+            <div class="param-group">
+                <label>Tasks Worker 1</label>
+                <input type="number" id="nb-tasks1" value="500000">
+            </div>
+            <div class="param-group">
+                <label>Tasks Worker 2</label>
+                <input type="number" id="nb-tasks2" value="100000">
+            </div>
+        </div>
+        <div class="actions">
+            <button class="btn btn-save" onclick="saveParams('no_balancer')">💾 Save</button>
+            <button class="btn btn-run" id="run-nb" onclick="runSim('no_balancer')">▶ Run</button>
+            <button class="btn btn-stop" id="stop-nb" onclick="stopSim('no_balancer')" disabled>■ Stop</button>
+        </div>
+        <div class="terminal">
+            <div class="terminal-bar">
+                <div class="dot-r"></div><div class="dot-y"></div><div class="dot-g"></div>
+                <span>no_balancer — sequential</span>
+            </div>
+            <div class="terminal-output" id="term-nb"></div>
+        </div>
+        <div class="elapsed-bar" id="elapsed-nb">Elapsed: <strong>—</strong></div>
+    </div>
+</div>
+
+<script>
+const API = '';
+const pollers = { hpc: null, no_balancer: null };
+const lineIdx = { hpc: 0, no_balancer: 0 };
+
+// Load params on start
+window.addEventListener('DOMContentLoaded', () => {
+    loadParams('hpc');
+    loadParams('no_balancer');
+});
+
+async function loadParams(mode) {
+    const res = await fetch(`${API}/api/${mode}/params`);
+    const p = await res.json();
+    if (mode === 'hpc') {
+        document.getElementById('hpc-simulations').value = p.simulations || 50000;
+        document.getElementById('hpc-np').value = p.np || 3;
+        document.getElementById('hpc-tasks1').value = p.tasks_node_1 || 500000;
+        document.getElementById('hpc-tasks2').value = p.tasks_node_2 || 100000;
+        document.getElementById('hpc-duration').value = p.max_duration || 360;
+    } else {
+        document.getElementById('nb-simulations').value = p.simulations || 50000;
+        document.getElementById('nb-tasks1').value = p.tasks_worker_1 || 500000;
+        document.getElementById('nb-tasks2').value = p.tasks_worker_2 || 100000;
+    }
+}
+
+async function saveParams(mode) {
+    let body;
+    if (mode === 'hpc') {
+        body = {
+            simulations: parseInt(document.getElementById('hpc-simulations').value),
+            tasks_node_1: parseInt(document.getElementById('hpc-tasks1').value),
+            tasks_node_2: parseInt(document.getElementById('hpc-tasks2').value),
+            max_duration: parseFloat(document.getElementById('hpc-duration').value)
+        };
+    } else {
+        body = {
+            simulations: parseInt(document.getElementById('nb-simulations').value),
+            tasks_worker_1: parseInt(document.getElementById('nb-tasks1').value),
+            tasks_worker_2: parseInt(document.getElementById('nb-tasks2').value)
+        };
+    }
+    await fetch(`${API}/api/${mode}/params`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+    });
+    showToast(mode === 'hpc' ? 'HPC' : 'No Balancer', 'Parameters saved!');
+}
+
+async function runSim(mode) {
+    // Save params first
+    await saveParams(mode);
+
+    const key = mode === 'hpc' ? 'hpc' : 'nb';
+    const term = document.getElementById(`term-${key}`);
+    term.innerHTML = '';
+    lineIdx[mode] = 0;
+
+    const body = {};
+    if (mode === 'hpc') {
+        body.np = parseInt(document.getElementById('hpc-np').value);
+    }
+
+    await fetch(`${API}/api/${mode}/run`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+    });
+
+    setButtons(mode, true);
+    startPolling(mode);
+}
+
+async function stopSim(mode) {
+    await fetch(`${API}/api/${mode}/stop`, { method: 'POST' });
+}
+
+function startPolling(mode) {
+    if (pollers[mode]) clearInterval(pollers[mode]);
+    pollers[mode] = setInterval(() => pollStatus(mode), 400);
+}
+
+async function pollStatus(mode) {
+    const key = mode === 'hpc' ? 'hpc' : 'nb';
+    try {
+        const res = await fetch(`${API}/api/${mode}/status?from=${lineIdx[mode]}`);
+        const data = await res.json();
+
+        // Update status badge
+        updateBadge(key, data.status);
+
+        // Append new lines
+        const term = document.getElementById(`term-${key}`);
+        data.lines.forEach(line => {
+            const div = document.createElement('div');
+            div.textContent = line;
+            div.className = classifyLine(line);
+            term.appendChild(div);
+        });
+        lineIdx[mode] += data.lines.length;
+
+        // Auto-scroll
+        if (data.lines.length > 0) {
+            term.scrollTop = term.scrollHeight;
+        }
+
+        // Update elapsed
+        if (data.elapsed != null) {
+            document.getElementById(`elapsed-${key}`).innerHTML =
+                `Elapsed: <strong>${data.elapsed.toFixed(1)}s</strong>`;
+        }
+
+        // Stop polling when done
+        if (['completed', 'error', 'stopped', 'idle'].includes(data.status)) {
+            clearInterval(pollers[mode]);
+            pollers[mode] = null;
+            setButtons(mode, false);
+        }
+    } catch(e) {}
+}
+
+function classifyLine(line) {
+    if (line.includes('warning:') || line.includes('ALERT')) return 'line-warn';
+    if (line.includes('ERROR') || line.includes('Error')) return 'line-error';
+    if (line.includes('[Master]')) return 'line-master';
+    if (line.includes('[Worker')) return 'line-worker';
+    if (line.includes('RESULT') || line.includes('Shutdown') || line.includes('FINISHED')) return 'line-result';
+    if (line.includes('═') || line.includes('║') || line.includes('╔') || line.includes('╚') || line.includes('╠')) return 'line-box';
+    if (line.includes('mpicc') || line.includes('gcc') || line.includes('make')) return 'line-build';
+    return '';
+}
+
+function updateBadge(key, status) {
+    const badge = document.getElementById(`status-${key}`);
+    badge.className = `status-badge status-${status}`;
+    badge.querySelector('span').textContent = status.toUpperCase();
+}
+
+function setButtons(mode, running) {
+    const key = mode === 'hpc' ? 'hpc' : 'nb';
+    document.getElementById(`run-${key}`).disabled = running;
+    document.getElementById(`stop-${key}`).disabled = !running;
+}
+
+function showToast(title, msg) {
+    const t = document.createElement('div');
+    t.style.cssText = 'position:fixed;bottom:20px;right:20px;background:rgba(0,212,255,0.15);border:1px solid rgba(0,212,255,0.3);color:#00d4ff;padding:12px 20px;border-radius:10px;font-size:0.8rem;z-index:999;backdrop-filter:blur(10px);animation:fadeIn 0.3s';
+    t.textContent = `${title}: ${msg}`;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2500);
+}
+</script>
+</body>
+</html>
