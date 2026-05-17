@@ -14,6 +14,8 @@ void run_worker(int world_rank, int world_size) {
     double cpu_batch_results[BATCH_SIZE];
     int processed_count = 0;
 
+    double worker_start = MPI_Wtime();
+
     while (simulation_running || task_queue.count > 0) {
         int items_to_process = 0;
 
@@ -39,7 +41,11 @@ void run_worker(int world_rank, int world_size) {
         }
     }
 
+    double worker_end = MPI_Wtime();
+    double worker_time = worker_end - worker_start;
+
     pthread_join(listener, NULL);
     pthread_mutex_destroy(&queue_mutex);
-    printf("[Worker %d] Shutdown successful. Processed a total of %d trades today.\n", world_rank, processed_count);
+    printf("[Worker %d] Shutdown successful. Processed %d trades in %.3f seconds (%.0f tasks/sec)\n", 
+           world_rank, processed_count, worker_time, processed_count / worker_time);
 }

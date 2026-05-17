@@ -21,7 +21,7 @@ void display_system_config(int world_rank, int world_size) {
         
         printf("║                                                            ║\n");
         printf("║  Simulation Parameters:                                    ║\n");
-        printf("║    - Duration: %.1f seconds                               ║\n", SIMULATION_DURATION_SECONDS);
+        printf("║    - Max Duration: %.1f seconds (timeout)                ║\n", SIMULATION_DURATION_SECONDS);
         printf("║    - Initial Load Node 1: %d tasks                         ║\n", INITIAL_TASKS_NODE_1);
         printf("║    - Initial Load Node 2: %d tasks                         ║\n", INITIAL_TASKS_NODE_2);
         printf("║                                                            ║\n");

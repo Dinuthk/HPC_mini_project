@@ -10,12 +10,14 @@ void run_master(int world_rank, int world_size) {
     Trade* batch = (Trade*)malloc(INITIAL_TASKS_NODE_1 * sizeof(Trade));
     for (int i = 0; i < INITIAL_TASKS_NODE_1; i++) { batch[i].stock_id = i; batch[i].price = 150.0; batch[i].volume = 100.0; }
 
+    double start_time = MPI_Wtime();
+
     printf("[Master] Creating Imbalance: Assigning %d tasks to Node 1, and %d to Node 2.\n", INITIAL_TASKS_NODE_1, INITIAL_TASKS_NODE_2);
     MPI_Send(batch, INITIAL_TASKS_NODE_1 * sizeof(Trade), MPI_BYTE, 1, TAG_WORK, MPI_COMM_WORLD);
     MPI_Send(batch, INITIAL_TASKS_NODE_2 * sizeof(Trade), MPI_BYTE, 2, TAG_WORK, MPI_COMM_WORLD);
 
-    double start_time = MPI_Wtime();
-    
+    int all_idle_count = 0; // Track consecutive empty steals for early termination
+
     while (MPI_Wtime() - start_time < SIMULATION_DURATION_SECONDS) {
         int flag; MPI_Status status;
         MPI_Iprobe(MPI_ANY_SOURCE, TAG_IDLE, MPI_COMM_WORLD, &flag, &status);
@@ -40,9 +42,16 @@ void run_master(int world_rank, int world_size) {
             int stolen_count = bytes / sizeof(Trade);
             printf("[Master] Acquired %d tasks from Node %d. Forwarding to Node %d...\n", stolen_count, overloaded_node, starving_node);
             
-            // Only forward if there are actually tasks to send
             if (stolen_count > 0) {
                 MPI_Send(stolen, bytes, MPI_BYTE, starving_node, TAG_WORK, MPI_COMM_WORLD);
+                all_idle_count = 0; // Work was redistributed, reset
+            } else {
+                all_idle_count++;
+                if (all_idle_count >= NUM_WORKERS) {
+                    if(stolen) free(stolen);
+                    printf("\n[Master] All workers have finished processing. Ending early.\n");
+                    break;
+                }
             }
             if(stolen) free(stolen);
         }
@@ -53,5 +62,18 @@ void run_master(int world_rank, int world_size) {
     int kill = 1;
     MPI_Send(&kill, 1, MPI_INT, 1, TAG_KILL_SIGNAL, MPI_COMM_WORLD);
     MPI_Send(&kill, 1, MPI_INT, 2, TAG_KILL_SIGNAL, MPI_COMM_WORLD);
+
+    double end_time = MPI_Wtime();
+    double total_time = end_time - start_time;
+
+    printf("\n╔════════════════════════════════════════════════════════════╗\n");
+    printf("║   RESULTS: HPC LOAD BALANCED                               ║\n");
+    printf("╠════════════════════════════════════════════════════════════╣\n");
+    printf("║                                                            ║\n");
+    printf("║  Total Execution Time:  %8.3f seconds                   ║\n", total_time);
+    printf("║  Total Tasks Assigned:  %d                            ║\n", INITIAL_TASKS_NODE_1 + INITIAL_TASKS_NODE_2);
+    printf("║                                                            ║\n");
+    printf("╚════════════════════════════════════════════════════════════╝\n\n");
+
     free(batch);
 }
