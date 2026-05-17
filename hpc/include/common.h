@@ -14,7 +14,7 @@
 #define TAG_STEAL_REQ 4     
 #define TAG_STOLEN_WORK 5   
 
-#define MAX_QUEUE_SIZE 200000
+#define MAX_QUEUE_SIZE 1000000
 #define BATCH_SIZE 1024 
 #define LOW_WATERMARK 1000
 
