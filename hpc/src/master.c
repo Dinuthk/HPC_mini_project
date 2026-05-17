@@ -40,7 +40,10 @@ void run_master(int world_rank, int world_size) {
             int stolen_count = bytes / sizeof(Trade);
             printf("[Master] Acquired %d tasks from Node %d. Forwarding to Node %d...\n", stolen_count, overloaded_node, starving_node);
             
-            MPI_Send(stolen, bytes, MPI_BYTE, starving_node, TAG_WORK, MPI_COMM_WORLD);
+            // Only forward if there are actually tasks to send
+            if (stolen_count > 0) {
+                MPI_Send(stolen, bytes, MPI_BYTE, starving_node, TAG_WORK, MPI_COMM_WORLD);
+            }
             if(stolen) free(stolen);
         }
         usleep(PROBE_INTERVAL_USEC); 

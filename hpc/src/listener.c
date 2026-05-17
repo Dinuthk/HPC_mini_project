@@ -21,7 +21,7 @@ void* network_listener(void* arg) {
                 
                 pthread_mutex_lock(&queue_mutex);
                 for (int i = 0; i < num_trades; i++) push_queue(&task_queue, incoming_batch[i]);
-                waiting_for_work = 0; 
+                if (num_trades > 0) waiting_for_work = 0; // Only reset if we actually got work
                 printf("\n[Worker %d Listener] SUCCESS! Received %d trades. Queue revitalized to: %d\n", world_rank, num_trades, task_queue.count);
                 pthread_mutex_unlock(&queue_mutex);
 

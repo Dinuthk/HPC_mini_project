@@ -22,4 +22,4 @@ main.cpp => nvcc -Xcompiler -fopenmp -Xcompiler -pthread -I/usr/lib/x86_64-linux
 
 Final run comand 
 
-hpc -> mpirun -np 3 ./bin/load_balancer
+make clean && make && mpirun --allow-run-as-root -np 3 ./bin/load_balancer
