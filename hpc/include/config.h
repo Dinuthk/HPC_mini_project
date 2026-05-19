@@ -18,7 +18,7 @@
 // ============================================================================
 // Task Configuration
 // ============================================================================
-#define INITIAL_TASKS_NODE_1 50000
+#define INITIAL_TASKS_NODE_1 49998
 #define INITIAL_TASKS_NODE_2 10000
 
 #define SIMULATION_DURATION_SECONDS 2000.0
