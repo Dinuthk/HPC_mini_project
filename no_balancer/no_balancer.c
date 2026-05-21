@@ -19,7 +19,7 @@
  */
 
 // Task Configuration (SAME as HPC version)
-#define TASKS_WORKER_1 50000
+#define TASKS_WORKER_1 49998
 #define TASKS_WORKER_2 10000
 #define TOTAL_TASKS (TASKS_WORKER_1 + TASKS_WORKER_2)
 
