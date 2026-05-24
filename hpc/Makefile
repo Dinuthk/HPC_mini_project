@@ -1,36 +1,49 @@
-# Define the compiler and the flags
-CC = mpicc
-CFLAGS = -Wall -Wextra -O3 -pthread -fopenmp -I./include
+CC = /opt/mpich2/bin/mpicc
+NVCC = nvcc
+CFLAGS = -Wall -Wextra -O3 -pthread -fopenmp -I./include -DCUDA_ENABLED
+CUDA_ARCH = -arch=sm_61
+LDFLAGS = -L/opt/mpich2/lib -L/usr/lib/x86_64-linux-gnu -L/usr/lib/x86_64-linux-gnu/ -lcudart -lcuda -lm -lstdc++
+MPI_EXEC = /opt/mpich2/bin/mpiexec
+NP = 3
+# WSL fix: Hydra process manager must use loopback (eth0 binding hangs in WSL)
+HYDRA_IFACE = lo
 
-# Define directories
 SRC_DIR = src
 OBJ_DIR = obj
 BIN_DIR = bin
-
-# Define the final executable name
 TARGET = $(BIN_DIR)/load_balancer
 
-# Find all .c files in the src directory
-SRCS = $(wildcard $(SRC_DIR)/*.c)
-# Define the corresponding .o (object) files
-OBJS = $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRCS))
+C_FILES = main.c master.c worker.c listener.c compute.c config.c dashboard.c cuda_monitor.c
+CU_FILES = compute.cu
 
-# Default target to build everything
-all: directories $(TARGET)
+C_OBJS = $(patsubst %.c, $(OBJ_DIR)/%.o, $(C_FILES))
+CU_OBJS = $(patsubst %.cu, $(OBJ_DIR)/%.cu.o, $(CU_FILES))
+ALL_OBJS = $(C_OBJS) $(CU_OBJS)
 
-# Create necessary directories if they don't exist
-directories:
-	@mkdir -p $(OBJ_DIR)
-	@mkdir -p $(BIN_DIR)
+.PHONY: all clean run
 
-# Link all the object files to create the final executable
-$(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^ -lm
+all: $(BIN_DIR) $(OBJ_DIR) $(TARGET)
 
-# Compile each .c file into a .o file
+run: all
+	HYDRA_IFACE=$(HYDRA_IFACE) $(MPI_EXEC) -n $(NP) $(TARGET)
+
+$(BIN_DIR):
+	mkdir -p $(BIN_DIR)
+
+$(OBJ_DIR):
+	mkdir -p $(OBJ_DIR)
+
+$(TARGET): $(ALL_OBJS)
+	$(CC) $(CFLAGS) -o $@ $(ALL_OBJS) $(LDFLAGS)
+	@echo "Successfully created: $@"
+
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Clean command to remove compiled files
+$(OBJ_DIR)/%.cu.o: $(SRC_DIR)/%.cu
+	$(NVCC) $(CUDA_ARCH) -Xcompiler "-fPIC -fopenmp" -I/opt/mpich2/include -I./include -c $< -o $@
+	@echo "Compiled: $@"
+
 clean:
+	sudo chown -R $(shell whoami) obj bin 2>/dev/null || true
 	rm -rf $(OBJ_DIR) $(BIN_DIR)

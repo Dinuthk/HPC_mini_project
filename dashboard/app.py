@@ -1,5 +1,26 @@
-from flask import Flask, render_template, request, jsonify
-import subprocess, threading, os, re, time
+import os, re, subprocess, sys, threading, time
+
+
+def _import_flask():
+    try:
+        from flask import Flask, render_template, request, jsonify
+        return Flask, render_template, request, jsonify
+    except ModuleNotFoundError:
+        bundled_site_packages = os.path.join(
+            os.path.dirname(__file__),
+            'venv',
+            'lib',
+            'python3.12',
+            'site-packages',
+        )
+        if os.path.isdir(bundled_site_packages) and bundled_site_packages not in sys.path:
+            sys.path.insert(0, bundled_site_packages)
+            from flask import Flask, render_template, request, jsonify
+            return Flask, render_template, request, jsonify
+        raise
+
+
+Flask, render_template, request, jsonify = _import_flask()
 
 app = Flask(__name__)
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -39,8 +60,11 @@ class SimRunner:
 
     def _exec(self, cmd):
         try:
+            # Flask runs inside WSL here, so execute commands directly in bash.
+            exec_args = ['bash', '-lc', cmd]
+
             self.process = subprocess.Popen(
-                ['wsl', '-d', 'Ubuntu', '--', 'bash', '-c', cmd],
+                exec_args,
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, bufsize=1, encoding='utf-8', errors='replace'
             )
@@ -101,7 +125,9 @@ class SimRunner:
 
 runners = {
     'hpc': SimRunner('HPC', os.path.join(PROJECT_ROOT, 'hpc'),
-                     'make clean && make', 'mpirun --allow-run-as-root -np 3 ./bin/load_balancer'),
+                     'make clean && make', '/opt/mpich2/bin/mpiexec -n 3 ./bin/load_balancer'),
+    'hpc_gpu': SimRunner('HPC (GPU)', os.path.join(PROJECT_ROOT, 'hpc'),
+                         'make clean && make', 'USE_CUDA=1 /opt/mpich2/bin/mpiexec -n 3 ./bin/load_balancer'),
     'no_balancer': SimRunner('No Balancer', os.path.join(PROJECT_ROOT, 'no_balancer'),
                              'make clean && make', './bin/no_balancer')
 }
@@ -109,7 +135,7 @@ runners = {
 # --- Parameter Management ---
 def read_params(mode):
     p = {}
-    if mode == 'hpc':
+    if mode.startswith('hpc'):
         with open(os.path.join(PROJECT_ROOT, 'hpc', 'src', 'compute.c'), 'r', encoding='utf-8') as f:
             m = re.search(r'int simulations\s*=\s*(\d+)', f.read())
             if m: p['simulations'] = int(m.group(1))
@@ -134,7 +160,7 @@ def read_params(mode):
     return p
 
 def write_params(mode, params):
-    if mode == 'hpc':
+    if mode.startswith('hpc'):
         if 'simulations' in params:
             path = os.path.join(PROJECT_ROOT, 'hpc', 'src', 'compute.c')
             with open(path, 'r', encoding='utf-8') as f: c = f.read()
@@ -181,7 +207,7 @@ def run_sim(mode):
     run_override = None
     if mode == 'hpc' and 'np' in data:
         np_val = int(data['np'])
-        run_override = f'mpirun --allow-run-as-root -np {np_val} ./bin/load_balancer'
+        run_override = f'/opt/mpich2/bin/mpiexec -n {np_val} ./bin/load_balancer'
     ok = runners[mode].run(run_override)
     return jsonify({'ok': ok})
 
@@ -199,4 +225,4 @@ if __name__ == '__main__':
     print("  HPC SIMULATION DASHBOARD")
     print("  Open: http://127.0.0.1:5000")
     print("="*60 + "\n")
-    app.run(debug=False, port=5000)
+    app.run(debug=False, host='0.0.0.0', port=5000)

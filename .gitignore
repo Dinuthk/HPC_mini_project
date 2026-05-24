@@ -1,3 +1,28 @@
+# Build outputs and compiled binaries
 hpc/bin/
 hpc/obj/
+no_balancer/bin/
 main
+main_mpi
+mpi_hello
+test_mpi_size
+cuda_load_balancer
+*.o
+
+# Local Python environments
+venv/
+.venv/
+dashboard/venv/
+
+# Generated build/report artifacts
+BUILD_OUTPUT.txt
+cuda-keyring_*.deb
+hpc/Miniconda3-latest-Linux-x86_64.sh
+REPORTS/*.aux
+REPORTS/*.fdb_latexmk
+REPORTS/*.fls
+REPORTS/*.log
+REPORTS/*.out
+REPORTS/*.pdf
+REPORTS/*.synctex.gz
+REPORTS/*.toc
