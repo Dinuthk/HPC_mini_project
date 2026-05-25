@@ -18,8 +18,8 @@
 // ============================================================================
 // Task Configuration
 // ============================================================================
-#define INITIAL_TASKS_NODE_1 49998
-#define INITIAL_TASKS_NODE_2 10000
+#define INITIAL_TASKS_NODE_1 1000
+#define INITIAL_TASKS_NODE_2 100
 
 #define SIMULATION_DURATION_SECONDS 2000.0
 #define PROBE_INTERVAL_USEC 20000

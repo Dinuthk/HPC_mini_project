@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HPC Simulation Dashboard</title>
+    <title>HPC Simulation Dashboard — RMSE Analysis</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -69,6 +70,7 @@
         }
         .panel.hpc .icon { background: rgba(0,212,255,0.15); }
         .panel.nb .icon { background: rgba(255,140,0,0.15); }
+        .panel.analysis .icon { background: rgba(123,97,255,0.15); }
         .panel-header h2 { font-size: 1rem; font-weight: 600; }
         .panel-header .subtitle { font-size: 0.7rem; color: #666; }
 
@@ -145,6 +147,15 @@
         }
         .btn-save:hover { background: rgba(255,255,255,0.14); }
         .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-analysis {
+            background: linear-gradient(135deg, #7b61ff, #5a3fd4);
+            color: #fff;
+        }
+        .btn-analysis:hover { box-shadow: 0 4px 20px rgba(123,97,255,0.3); }
+        .btn-danger {
+            background: rgba(255,60,60,0.12); color: #ff5555;
+        }
+        .btn-danger:hover { background: rgba(255,60,60,0.22); }
 
         .terminal {
             margin: 0 1.5rem 1.2rem;
@@ -192,8 +203,146 @@
         }
         .elapsed-bar strong { color: #aaa; }
 
+        /* ─── ANALYSIS SECTION ─── */
+        .analysis-section {
+            position: relative; z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto 2rem;
+            padding: 0 1.5rem;
+        }
+
+        .analysis-panel {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 16px;
+            backdrop-filter: blur(12px);
+            overflow: hidden;
+            transition: border-color 0.3s;
+        }
+        .analysis-panel:hover { border-color: rgba(123,97,255,0.2); }
+
+        .metric-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            padding: 1.5rem;
+        }
+        .metric-card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 1.2rem;
+            text-align: center;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            border-radius: 12px 12px 0 0;
+        }
+        .metric-card:nth-child(1)::before { background: linear-gradient(90deg, #00d4ff, #0099cc); }
+        .metric-card:nth-child(2)::before { background: linear-gradient(90deg, #7b61ff, #5a3fd4); }
+        .metric-card:nth-child(3)::before { background: linear-gradient(90deg, #00ff64, #00cc50); }
+        .metric-card:nth-child(4)::before { background: linear-gradient(90deg, #ff6b35, #cc5500); }
+        .metric-card:hover {
+            background: rgba(255,255,255,0.07);
+            border-color: rgba(255,255,255,0.15);
+            transform: translateY(-2px);
+        }
+        .metric-card .metric-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        .metric-card .metric-value {
+            font-size: 1.8rem; font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 0.2rem;
+        }
+        .metric-card:nth-child(1) .metric-value { color: #00d4ff; }
+        .metric-card:nth-child(2) .metric-value { color: #7b61ff; }
+        .metric-card:nth-child(3) .metric-value { color: #00ff64; }
+        .metric-card:nth-child(4) .metric-value { color: #ff6b35; }
+        .metric-card .metric-label {
+            font-size: 0.7rem; color: #888; text-transform: uppercase;
+            letter-spacing: 0.5px; font-weight: 500;
+        }
+        .metric-card .metric-sub {
+            font-size: 0.65rem; color: #555; margin-top: 0.3rem;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            padding: 0 1.5rem 1.5rem;
+        }
+        .chart-box {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            padding: 1.2rem;
+        }
+        .chart-box h3 {
+            font-size: 0.8rem; font-weight: 600; margin-bottom: 1rem;
+            color: #ccc;
+        }
+        .chart-box canvas { max-height: 260px; }
+
+        .history-section {
+            padding: 0 1.5rem 1.5rem;
+        }
+        .history-section h3 {
+            font-size: 0.85rem; font-weight: 600; color: #ccc;
+            margin-bottom: 0.8rem; display: flex; align-items: center; gap: 0.5rem;
+        }
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+        }
+        .history-table th {
+            text-align: left;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.05);
+            color: #888;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 0.65rem;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .history-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            color: #bbb;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .history-table tr:hover td { background: rgba(255,255,255,0.03); }
+        .history-empty {
+            padding: 2rem;
+            text-align: center;
+            color: #555;
+            font-size: 0.8rem;
+        }
+
+        .analysis-actions {
+            display: flex; gap: 0.6rem;
+            padding: 0 1.5rem 1.2rem;
+        }
+
+        .no-data-msg {
+            text-align: center; padding: 3rem 2rem;
+            color: #555;
+        }
+        .no-data-msg .nd-icon { font-size: 2.5rem; margin-bottom: 0.8rem; }
+        .no-data-msg p { font-size: 0.85rem; line-height: 1.6; }
+        .no-data-msg .nd-hint { color: #444; font-size: 0.75rem; margin-top: 0.5rem; }
+
         @media (max-width: 900px) {
             .panels { grid-template-columns: 1fr; }
+            .metric-cards { grid-template-columns: 1fr 1fr; }
+            .charts-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -301,15 +450,118 @@
     </div>
 </div>
 
+<!-- ═══════════ RMSE & PERFORMANCE ANALYSIS SECTION ═══════════ -->
+<div class="analysis-section">
+    <div class="analysis-panel" id="analysis-panel">
+        <div class="panel-header">
+            <div class="title-group">
+                <div class="icon" style="background: rgba(123,97,255,0.15);">📈</div>
+                <div>
+                    <h2>RMSE & Performance Analysis</h2>
+                    <div class="subtitle">Workload Distribution RMSE · Speedup · Efficiency · Idle Time</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metric Cards -->
+        <div id="analysis-content">
+            <div class="no-data-msg" id="no-data-msg">
+                <div class="nd-icon">📊</div>
+                <p>Run both simulations to generate analysis</p>
+                <div class="nd-hint">Complete at least one HPC and one No-Balancer run, then click "Refresh Analysis"</div>
+            </div>
+        </div>
+
+        <div class="metric-cards" id="metric-cards" style="display:none;">
+            <div class="metric-card">
+                <div class="metric-icon">⚡</div>
+                <div class="metric-value" id="m-speedup">—</div>
+                <div class="metric-label">Speedup</div>
+                <div class="metric-sub" id="m-speedup-sub">HPC vs Sequential</div>
+            </div>
+            <!-- <div class="metric-card">
+                <div class="metric-icon">📐</div>
+                <div class="metric-value" id="m-rmse">—</div>
+                <div class="metric-label">Workload RMSE</div>
+                <div class="metric-sub" id="m-rmse-sub">Task distribution imbalance</div>
+            </div> -->
+            <div class="metric-card">
+                <div class="metric-icon">🎯</div>
+                <div class="metric-value" id="m-efficiency">—</div>
+                <div class="metric-label">Efficiency</div>
+                <div class="metric-sub" id="m-efficiency-sub">Parallel utilization</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon">🔄</div>
+                <div class="metric-value" id="m-idle">—</div>
+                <div class="metric-label">Idle Reduction</div>
+                <div class="metric-sub" id="m-idle-sub">Worker idle time eliminated</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-grid" id="charts-grid" style="display:none;">
+            <div class="chart-box">
+                <h3>⏱ Execution Time Comparison</h3>
+                <canvas id="chart-time"></canvas>
+            </div>
+            <div class="chart-box">
+                <h3>📊 Worker Task Distribution (RMSE)</h3>
+                <canvas id="chart-tasks"></canvas>
+            </div>
+            <div class="chart-box">
+                <h3>🚀 Throughput Comparison</h3>
+                <canvas id="chart-throughput"></canvas>
+            </div>
+            <div class="chart-box">
+                <h3>⏳ Per-Worker Execution Time</h3>
+                <canvas id="chart-worker-time"></canvas>
+            </div>
+        </div>
+
+        <!-- Run History Table -->
+        <div class="history-section" id="history-section" style="display:none;">
+            <h3>📋 Run History — Multi-Experiment Comparison</h3>
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>Run</th>
+                        <th>Time</th>
+                        <th>Tasks (N1 / N2)</th>
+                        <th>Serial Time (s)</th>
+                        <th>HPC Time (s)</th>
+                        <th>Speedup</th>
+                        <th>RMSE (Serial)</th>
+                        <th>RMSE (HPC)</th>
+                        <th>Improvement</th>
+                    </tr>
+                </thead>
+                <tbody id="history-tbody"></tbody>
+            </table>
+            <div class="history-empty" id="history-empty">
+                No saved runs yet. Click "Save to History" after each experiment.
+            </div>
+        </div>
+
+        <!-- Analysis Actions -->
+        <div class="analysis-actions">
+            <button class="btn btn-analysis" onclick="refreshAnalysis()">📈 Refresh Analysis</button>
+            <button class="btn btn-save" onclick="saveToHistory()">💾 Save to History</button>
+            <button class="btn btn-danger" onclick="clearHistory()">🗑 Clear History</button>
+        </div>
+    </div>
+</div>
+
 <script>
+/* ═══════════ ORIGINAL SIMULATION CONTROLS ═══════════ */
 const API = '';
 const pollers = { hpc: null, no_balancer: null };
 const lineIdx = { hpc: 0, no_balancer: 0 };
 
-// Load params on start
 window.addEventListener('DOMContentLoaded', () => {
     loadParams('hpc');
     loadParams('no_balancer');
+    loadHistory();
 });
 
 async function loadParams(mode) {
@@ -351,9 +603,7 @@ async function saveParams(mode) {
 }
 
 async function runSim(mode) {
-    // Save params first
     await saveParams(mode);
-
     const key = mode === 'hpc' ? 'hpc' : 'nb';
     const term = document.getElementById(`term-${key}`);
     term.innerHTML = '';
@@ -386,11 +636,8 @@ async function pollStatus(mode) {
     try {
         const res = await fetch(`${API}/api/${mode}/status?from=${lineIdx[mode]}`);
         const data = await res.json();
-
-        // Update status badge
         updateBadge(key, data.status);
 
-        // Append new lines
         const term = document.getElementById(`term-${key}`);
         data.lines.forEach(line => {
             const div = document.createElement('div');
@@ -400,22 +647,19 @@ async function pollStatus(mode) {
         });
         lineIdx[mode] += data.lines.length;
 
-        // Auto-scroll
-        if (data.lines.length > 0) {
-            term.scrollTop = term.scrollHeight;
-        }
+        if (data.lines.length > 0) term.scrollTop = term.scrollHeight;
 
-        // Update elapsed
         if (data.elapsed != null) {
             document.getElementById(`elapsed-${key}`).innerHTML =
                 `Elapsed: <strong>${data.elapsed.toFixed(1)}s</strong>`;
         }
 
-        // Stop polling when done
         if (['completed', 'error', 'stopped', 'idle'].includes(data.status)) {
             clearInterval(pollers[mode]);
             pollers[mode] = null;
             setButtons(mode, false);
+            // Auto-refresh analysis when a sim completes
+            setTimeout(() => refreshAnalysis(), 1000);
         }
     } catch(e) {}
 }
@@ -449,6 +693,259 @@ function showToast(title, msg) {
     t.textContent = `${title}: ${msg}`;
     document.body.appendChild(t);
     setTimeout(() => t.remove(), 2500);
+}
+
+
+/* ═══════════ RMSE & ANALYSIS ═══════════ */
+const chartInstances = {};
+
+const chartDefaults = {
+    responsive: true,
+    maintainAspectRatio: true,
+    plugins: {
+        legend: { labels: { color: '#aaa', font: { family: 'Inter', size: 11 } } }
+    },
+    scales: {
+        x: { ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { ticks: { color: '#888' }, grid: { color: 'rgba(255,255,255,0.04)' } }
+    }
+};
+
+async function refreshAnalysis() {
+    try {
+        const res = await fetch(`${API}/api/analysis`);
+        const data = await res.json();
+
+        const hasHpc = data.hpc && data.hpc.exec_time;
+        const hasNb = data.no_balancer && data.no_balancer.exec_time;
+
+        if (!hasHpc && !hasNb) return; // no data yet
+
+        // Show analysis content
+        document.getElementById('no-data-msg').style.display = 'none';
+        document.getElementById('metric-cards').style.display = 'grid';
+        document.getElementById('charts-grid').style.display = 'grid';
+        document.getElementById('history-section').style.display = 'block';
+
+        // ── Metric Cards ──
+        if (data.speedup != null) {
+            document.getElementById('m-speedup').textContent = data.speedup + '×';
+            document.getElementById('m-speedup-sub').textContent =
+                `${(data.no_balancer.exec_time || 0).toFixed(1)}s → ${(data.hpc.exec_time || 0).toFixed(1)}s`;
+        }
+
+        /* if (data.rmse) {
+            document.getElementById('m-rmse').textContent = data.rmse.hpc_imbalance_rmse.toLocaleString();
+            document.getElementById('m-rmse-sub').textContent =
+                `Serial RMSE: ${data.rmse.nb_imbalance_rmse.toLocaleString()} | ↓${data.rmse.improvement_pct}%`;
+        } */
+
+        if (data.efficiency != null) {
+            document.getElementById('m-efficiency').textContent = data.efficiency + '%';
+            const cores = data.total_cores || '?';
+            document.getElementById('m-efficiency-sub').textContent = `Across ${cores} total cores (workers × OMP threads)`;
+        }
+
+        if (data.idle_reduction != null) {
+            document.getElementById('m-idle').textContent = data.idle_reduction + '%';
+            document.getElementById('m-idle-sub').textContent =
+                `Idle: ${(data.no_balancer.idle_time || 0).toFixed(1)}s → ~0s`;
+        }
+
+        // ── Chart 1: Execution Time ──
+        renderChart('chart-time', 'bar', {
+            labels: ['No Balancer (Serial)', 'HPC Load Balanced'],
+            datasets: [{
+                label: 'Execution Time (seconds)',
+                data: [data.no_balancer?.exec_time || 0, data.hpc?.exec_time || 0],
+                backgroundColor: ['rgba(255,140,0,0.6)', 'rgba(0,212,255,0.6)'],
+                borderColor: ['#ff8c00', '#00d4ff'],
+                borderWidth: 2,
+                borderRadius: 6
+            }]
+        }, { indexAxis: 'y' });
+
+        // ── Chart 2: Worker Task Distribution (RMSE visualization) ──
+        const nbWorkers = data.no_balancer?.workers || [];
+        const hpcWorkers = data.hpc?.workers || [];
+        const taskLabels = ['Worker 1', 'Worker 2'];
+        renderChart('chart-tasks', 'bar', {
+            labels: taskLabels,
+            datasets: [
+                {
+                    label: 'Serial (Imbalanced)',
+                    data: nbWorkers.map(w => w.tasks),
+                    backgroundColor: 'rgba(255,140,0,0.5)',
+                    borderColor: '#ff8c00',
+                    borderWidth: 2,
+                    borderRadius: 4
+                },
+                {
+                    label: 'HPC (Balanced)',
+                    data: hpcWorkers.map(w => w.tasks),
+                    backgroundColor: 'rgba(0,212,255,0.5)',
+                    borderColor: '#00d4ff',
+                    borderWidth: 2,
+                    borderRadius: 4
+                }
+            ]
+        });
+
+        // ── Chart 3: Throughput ──
+        renderChart('chart-throughput', 'bar', {
+            labels: ['No Balancer', 'HPC'],
+            datasets: [{
+                label: 'Throughput (tasks/sec)',
+                data: [data.no_balancer?.throughput || 0, data.hpc?.throughput || 0],
+                backgroundColor: ['rgba(255,107,53,0.6)', 'rgba(123,97,255,0.6)'],
+                borderColor: ['#ff6b35', '#7b61ff'],
+                borderWidth: 2,
+                borderRadius: 6
+            }]
+        });
+
+        // ── Chart 4: Per-Worker Time ──
+        const w1Times = [
+            nbWorkers[0]?.time || 0,
+            hpcWorkers[0]?.time || 0
+        ];
+        const w2Times = [
+            nbWorkers[1]?.time || 0,
+            hpcWorkers[1]?.time || 0
+        ];
+        renderChart('chart-worker-time', 'bar', {
+            labels: ['No Balancer', 'HPC'],
+            datasets: [
+                {
+                    label: 'Worker 1 Time (s)',
+                    data: w1Times,
+                    backgroundColor: 'rgba(0,212,255,0.5)',
+                    borderColor: '#00d4ff',
+                    borderWidth: 2,
+                    borderRadius: 4
+                },
+                {
+                    label: 'Worker 2 Time (s)',
+                    data: w2Times,
+                    backgroundColor: 'rgba(123,97,255,0.5)',
+                    borderColor: '#7b61ff',
+                    borderWidth: 2,
+                    borderRadius: 4
+                }
+            ]
+        });
+
+        showToast('Analysis', 'Charts updated!');
+    } catch (e) {
+        console.error('Analysis error:', e);
+    }
+}
+
+function renderChart(canvasId, type, data, extraOpts = {}) {
+    if (chartInstances[canvasId]) {
+        chartInstances[canvasId].destroy();
+    }
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    chartInstances[canvasId] = new Chart(ctx, {
+        type,
+        data,
+        options: {
+            ...chartDefaults,
+            ...extraOpts,
+            scales: {
+                x: {
+                    ...chartDefaults.scales.x,
+                    ...(extraOpts.indexAxis === 'y' ? {} : {})
+                },
+                y: {
+                    ...chartDefaults.scales.y,
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+
+/* ═══════════ RUN HISTORY ═══════════ */
+async function saveToHistory() {
+    const label = prompt('Enter a label for this run:', `Run (${new Date().toLocaleTimeString()})`);
+    if (!label) return;
+    await fetch(`${API}/api/analysis/save`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ label })
+    });
+    showToast('History', 'Run saved!');
+    loadHistory();
+}
+
+async function clearHistory() {
+    if (!confirm('Clear all run history?')) return;
+    await fetch(`${API}/api/analysis/history`, { method: 'DELETE' });
+    showToast('History', 'Cleared');
+    loadHistory();
+}
+
+async function loadHistory() {
+    try {
+        const res = await fetch(`${API}/api/analysis/history`);
+        const history = await res.json();
+        const tbody = document.getElementById('history-tbody');
+        const empty = document.getElementById('history-empty');
+        tbody.innerHTML = '';
+
+        if (!history.length) {
+            empty.style.display = 'block';
+            return;
+        }
+        empty.style.display = 'none';
+
+        history.forEach((entry, i) => {
+            const hpc = entry.hpc || {};
+            const nb = entry.no_balancer || {};
+            const nbTasks = nb.workers || [];
+            const hpcTasks = hpc.workers || [];
+
+            // Compute RMSE for this entry
+            let nbRmse = '—', hpcRmse = '—', improvement = '—';
+            if (nbTasks.length >= 2) {
+                const nbMean = nbTasks.reduce((s,w) => s + w.tasks, 0) / nbTasks.length;
+                nbRmse = Math.sqrt(nbTasks.reduce((s,w) => s + (w.tasks - nbMean)**2, 0) / nbTasks.length).toFixed(0);
+            }
+            if (hpcTasks.length >= 2) {
+                const hpcMean = hpcTasks.reduce((s,w) => s + w.tasks, 0) / hpcTasks.length;
+                hpcRmse = Math.sqrt(hpcTasks.reduce((s,w) => s + (w.tasks - hpcMean)**2, 0) / hpcTasks.length).toFixed(0);
+            }
+            if (nbRmse !== '—' && hpcRmse !== '—' && parseFloat(nbRmse) > 0) {
+                improvement = ((1 - parseFloat(hpcRmse) / parseFloat(nbRmse)) * 100).toFixed(1) + '%';
+            }
+
+            const speedup = (nb.exec_time && hpc.exec_time && hpc.exec_time > 0)
+                ? (nb.exec_time / hpc.exec_time).toFixed(2) + '×' : '—';
+
+            const p = entry.params || {};
+            const n1 = p.hpc?.tasks_node_1 || p.no_balancer?.tasks_worker_1 || '—';
+            const n2 = p.hpc?.tasks_node_2 || p.no_balancer?.tasks_worker_2 || '—';
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${entry.label}</td>
+                <td>${entry.timestamp}</td>
+                <td>${Number(n1).toLocaleString()} / ${Number(n2).toLocaleString()}</td>
+                <td>${nb.exec_time?.toFixed(2) || '—'}</td>
+                <td>${hpc.exec_time?.toFixed(2) || '—'}</td>
+                <td style="color:#00d4ff;font-weight:600">${speedup}</td>
+                <td style="color:#ff8c00">${Number(nbRmse).toLocaleString()}</td>
+                <td style="color:#00ff64">${Number(hpcRmse).toLocaleString()}</td>
+                <td style="color:#7b61ff;font-weight:600">${improvement}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // Show history section
+        document.getElementById('history-section').style.display = 'block';
+    } catch (e) {}
 }
 </script>
 </body>
