@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
+#include <pthread.h>
 
 /**
  * NO LOAD BALANCER - Pure Sequential Version
@@ -19,8 +20,8 @@
  */
 
 // Task Configuration (SAME as HPC version)
-#define TASKS_WORKER_1 5000
-#define TASKS_WORKER_2 1000
+#define TASKS_WORKER_1 10000
+#define TASKS_WORKER_2 5000
 #define TOTAL_TASKS (TASKS_WORKER_1 + TASKS_WORKER_2)
 
 // The Trade Struct (identical to HPC version)
@@ -90,6 +91,27 @@ double process_tasks(const char* worker_name, Trade* tasks, int num_tasks, int* 
 }
 
 // ---------------------------------------------------------
+// Thread function and data
+// ---------------------------------------------------------
+typedef struct {
+    const char* worker_name;
+    Trade* tasks;
+    int num_tasks;
+    int processed;
+    double checksum;
+    double start_time;
+    double end_time;
+} WorkerArgs;
+
+void* worker_thread(void* arg) {
+    WorkerArgs* w = (WorkerArgs*)arg;
+    w->start_time = get_time();
+    w->checksum = process_tasks(w->worker_name, w->tasks, w->num_tasks, &w->processed);
+    w->end_time = get_time();
+    return NULL;
+}
+
+// ---------------------------------------------------------
 // MAIN
 // ---------------------------------------------------------
 int main() {
@@ -131,37 +153,30 @@ int main() {
     Trade* worker1_tasks = all_tasks;
     Trade* worker2_tasks = all_tasks + TASKS_WORKER_1;
 
+    printf("====================================================\n");
+    printf("[Workers] Starting: Worker 1 (%d tasks) & Worker 2 (%d tasks) concurrently\n", TASKS_WORKER_1, TASKS_WORKER_2);
+    printf("====================================================\n");
+
+    WorkerArgs args1 = {"Worker 1", worker1_tasks, TASKS_WORKER_1, 0, 0.0, 0.0, 0.0};
+    WorkerArgs args2 = {"Worker 2", worker2_tasks, TASKS_WORKER_2, 0, 0.0, 0.0, 0.0};
+
+    pthread_t t1, t2;
     double total_start = get_time();
 
-    // ==================== WORKER 2 (Smaller load — finishes first) ====================
-    printf("====================================================\n");
-    printf("[Worker 2] Starting: %d tasks (single thread)\n", TASKS_WORKER_2);
-    printf("====================================================\n");
+    pthread_create(&t1, NULL, worker_thread, &args1);
+    pthread_create(&t2, NULL, worker_thread, &args2);
 
-    double w2_start = get_time();
-    int w2_processed;
-    double w2_checksum = process_tasks("Worker 2", worker2_tasks, TASKS_WORKER_2, &w2_processed);
-    double w2_end = get_time();
-    double w2_time = w2_end - w2_start;
-
-    printf("[Worker 2] FINISHED. %d tasks in %.3f seconds\n", w2_processed, w2_time);
-    printf("[Worker 2] Throughput: %.0f tasks/sec\n\n", w2_processed / w2_time);
-
-    // ==================== WORKER 1 (Larger load — takes much longer) ====================
-    printf("====================================================\n");
-    printf("[Worker 1] Starting: %d tasks (single thread)\n", TASKS_WORKER_1);
+    pthread_join(t2, NULL);
+    double w2_time = args2.end_time - args2.start_time;
+    printf("[Worker 2] FINISHED. %d tasks in %.3f seconds\n", args2.processed, w2_time);
+    printf("[Worker 2] Throughput: %.0f tasks/sec\n\n", args2.processed / w2_time);
     printf("[Worker 1] Worker 2 is now IDLE — no way to help!\n");
-    printf("====================================================\n");
 
-    double w1_start = get_time();
-    int w1_processed;
-    double w1_checksum = process_tasks("Worker 1", worker1_tasks, TASKS_WORKER_1, &w1_processed);
-    double w1_end = get_time();
-    double w1_time = w1_end - w1_start;
-
-    printf("[Worker 1] FINISHED. %d tasks in %.3f seconds\n", w1_processed, w1_time);
-    printf("[Worker 1] Throughput: %.0f tasks/sec\n", w1_processed / w1_time);
-    printf("[Checksum] %.2f (prevents compiler optimization)\n\n", w1_checksum + w2_checksum);
+    pthread_join(t1, NULL);
+    double w1_time = args1.end_time - args1.start_time;
+    printf("[Worker 1] FINISHED. %d tasks in %.3f seconds\n", args1.processed, w1_time);
+    printf("[Worker 1] Throughput: %.0f tasks/sec\n", args1.processed / w1_time);
+    printf("[Checksum] %.2f (prevents compiler optimization)\n\n", args1.checksum + args2.checksum);
 
     double total_end = get_time();
     double total_time = total_end - total_start;
@@ -171,14 +186,14 @@ int main() {
     printf("║   RESULTS: NO LOAD BALANCER (Sequential)                   ║\n");
     printf("╠════════════════════════════════════════════════════════════╣\n");
     printf("║                                                            ║\n");
-    printf("║  Worker 1: %-6d tasks in %8.3f sec                    ║\n", w1_processed, w1_time);
-    printf("║  Worker 2: %-6d tasks in %8.3f sec                    ║\n", w2_processed, w2_time);
+    printf("║  Worker 1: %-6d tasks in %8.3f sec                    ║\n", args1.processed, w1_time);
+    printf("║  Worker 2: %-6d tasks in %8.3f sec                    ║\n", args2.processed, w2_time);
     printf("║                                                            ║\n");
-    printf("║  Total Tasks Processed: %-6d                              ║\n", w1_processed + w2_processed);
+    printf("║  Total Tasks Processed: %-6d                              ║\n", args1.processed + args2.processed);
     printf("║  Total Execution Time:  %8.3f seconds                   ║\n", total_time);
-    printf("║  Overall Throughput:    %8.0f tasks/sec                  ║\n", (w1_processed + w2_processed) / total_time);
+    printf("║  Overall Throughput:    %8.0f tasks/sec                  ║\n", (args1.processed + args2.processed) / total_time);
     printf("║                                                            ║\n");
-    printf("║  BOTTLENECK: Worker 2 sat IDLE for %.3f seconds        ║\n", w1_time);
+    printf("║  BOTTLENECK: Worker 2 sat IDLE for %.3f seconds        ║\n", w1_time > w2_time ? (w1_time - w2_time) : 0.0);
     printf("║  while Worker 1 was still processing.                      ║\n");
     printf("║  No work stealing = wasted compute time.                   ║\n");
     printf("║                                                            ║\n");
