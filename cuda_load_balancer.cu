@@ -10,11 +10,11 @@
 #define INITIAL_TASKS_NODE_1   49998
 #define INITIAL_TASKS_NODE_2   10000
 #define TOTAL_TASKS            (INITIAL_TASKS_NODE_1 + INITIAL_TASKS_NODE_2)
-#define SIMULATIONS_PER_TRADE  50000
-#define BATCH_SIZE             1024
-#define LOW_WATERMARK          1000
-#define NUM_STREAMS            2
-#define MAX_STEAL_ROUNDS       20
+#define SIMULATIONS_PER_TRADE  50000 
+#define BATCH_SIZE             1024 // number of trades processed in one kernel launch per stream
+#define LOW_WATERMARK          1000 // threshold for when a stream is considered "idle" and eligible for work stealing
+#define NUM_STREAMS            2 
+#define MAX_STEAL_ROUNDS       20 // maximum number of times the load balancer is allowed to attempt work stealing
 
 /* ============================================================
    DATA STRUCTURES  (mirrors Trade / TradeQueue from common.h)
@@ -23,8 +23,8 @@ typedef struct {
     int stock_id;
     double price;
     double volume;
-    long timestamp;
-    double complexity_weight;
+    long timestamp; //Stores the time of the trade.
+    double complexity_weight; //to represent how computationally expensive or volatile a trade is during the simulation.
 } Trade;
 
 typedef struct {
@@ -89,7 +89,7 @@ __global__ void compute_risk_kernel(
 {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
     if (tid >= n_trades) return;
-
+*
     double base_price = trades[tid].price;
     double volume = trades[tid].volume;
     double weight = trades[tid].complexity_weight;
