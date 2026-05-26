@@ -31,25 +31,33 @@ void* network_listener(void* arg) {
                 int req;
                 MPI_Recv(&req, 1, MPI_INT, 0, TAG_STEAL_REQ, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                 
+                // Lock the queue before taking tasks to give away
                 pthread_mutex_lock(&queue_mutex);
+                
+                // Decide to give away exactly half of our current tasks
                 int steal_count = task_queue.count / 2; 
                 Trade* stolen = NULL;
                 
                 if (steal_count > 0) {
                     stolen = (Trade*)malloc(steal_count * sizeof(Trade));
                     for (int i = 0; i < steal_count; i++) {
+                        // CRITICAL: Steal from the REAR of the queue to avoid conflict 
+                        // with the main worker thread which pops from the FRONT
                         stolen[i] = pop_rear_queue(&task_queue);
                     }
                 }
+                // Unlock quickly to let the main worker continue
                 pthread_mutex_unlock(&queue_mutex);
 
                 MPI_Send(stolen, steal_count * sizeof(Trade), MPI_BYTE, 0, TAG_STOLEN_WORK, MPI_COMM_WORLD);
                 printf("\n[Worker %d Listener] STEAL EXECUTED! Surrendered %d tasks from the rear of my queue.\n", world_rank, steal_count);
                 if (stolen) free(stolen);
             }
+            // Master says the simulation is over
             else if (status.MPI_TAG == TAG_KILL_SIGNAL) {
                 int kill_msg;
                 MPI_Recv(&kill_msg, 1, MPI_INT, 0, TAG_KILL_SIGNAL, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                // Set this global flag to 0 to break the loops and terminate gracefully
                 simulation_running = 0; 
             }
         }

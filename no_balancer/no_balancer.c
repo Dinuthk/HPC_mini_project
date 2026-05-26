@@ -20,8 +20,8 @@
  */
 
 // Task Configuration (SAME as HPC version)
-#define TASKS_WORKER_1 10000
-#define TASKS_WORKER_2 5000
+#define TASKS_WORKER_1 40000
+#define TASKS_WORKER_2 6000
 #define TOTAL_TASKS (TASKS_WORKER_1 + TASKS_WORKER_2)
 
 // The Trade Struct (identical to HPC version)

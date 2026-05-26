@@ -35,12 +35,16 @@ Trade pop_rear_queue(TradeQueue* q) {
 }
 
 int main(int argc, char** argv) {
+    // Initialize the MPI environment
     MPI_Init(&argc, &argv);
 
     int world_rank, world_size;
+    // Get the rank (ID) of the current process (0 for Master, 1/2 for Workers)
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+    // Get the total number of processes in this communicator
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 
+    // Ensure we have at least 1 Master and 2 Workers
     if (world_size < 3) {
         if (world_rank == 0) printf("[Error] Need at least 3 nodes.\n");
         MPI_Finalize();
@@ -50,12 +54,16 @@ int main(int argc, char** argv) {
     // Display system configuration
     display_system_config(world_rank, world_size);
 
+    // Split execution based on rank
     if (world_rank == 0) {
+        // Rank 0 is always the Master orchestrator
         run_master(world_rank, world_size);
     } else {
+        // All other ranks act as Workers
         run_worker(world_rank, world_size);
     }
 
+    // Clean up and shutdown MPI environment
     MPI_Finalize();
     return 0;
 }

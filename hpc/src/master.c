@@ -18,18 +18,25 @@ void run_master(int world_rank, int world_size) {
 
     int all_idle_count = 0; // Track consecutive empty steals for early termination
 
+    // Main simulation loop: run until duration expires
     while (MPI_Wtime() - start_time < SIMULATION_DURATION_SECONDS) {
         int flag; MPI_Status status;
+        // Non-blocking check to see if any worker sent a TAG_IDLE (starving) message
         MPI_Iprobe(MPI_ANY_SOURCE, TAG_IDLE, MPI_COMM_WORLD, &flag, &status);
         
         if (flag) {
-            int starving_node = status.MPI_SOURCE;
-            int dummy; MPI_Recv(&dummy, 1, MPI_INT, starving_node, TAG_IDLE, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            // A worker is out of tasks!
+            int starving_node = status.MPI_SOURCE; // Identify who is starving
+            int dummy; 
+            // Receive the dummy message to clear it from the queue
+            MPI_Recv(&dummy, 1, MPI_INT, starving_node, TAG_IDLE, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             
+            // Determine who to steal from (if 1 is starving, steal from 2, and vice versa)
             int overloaded_node = (starving_node == 1) ? 2 : 1;
             printf("\n[Master] ALERT! Node %d is starving! Initiating Steal Protocol against Node %d...\n", starving_node, overloaded_node);
             
             int req = 1;
+            // Send a steal request to the overloaded node
             MPI_Send(&req, 1, MPI_INT, overloaded_node, TAG_STEAL_REQ, MPI_COMM_WORLD);
             
             MPI_Probe(overloaded_node, TAG_STOLEN_WORK, MPI_COMM_WORLD, &status);
